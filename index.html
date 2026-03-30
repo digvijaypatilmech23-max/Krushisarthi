@@ -165,11 +165,10 @@ border-radius:10px;
 
 <script type="module">
 
-/* FIREBASE IMPORT */
+/* FIREBASE */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-/* FIREBASE CONFIG */
 const firebaseConfig = {
 apiKey: "AIzaSyAo2-BGrCrO3N8pjTqaoAPH34_o6-Eueyo",
 databaseURL: "https://tifan-66317-default-rtdb.asia-southeast1.firebasedatabase.app"
@@ -193,6 +192,7 @@ alert("Use 001");
 /* VARIABLES */
 let prevCount = 0;
 let missed = 0;
+let lastTrigger = "NO";
 
 /* GRAPH */
 let ctx=document.getElementById("chart");
@@ -215,7 +215,7 @@ y:{title:{display:true,text:"Speed (km/h)"}}
 }
 });
 
-/* FIREBASE LIVE DATA */
+/* FIREBASE DATA */
 onValue(ref(db, "transplanter"), (snapshot) => {
 
 const data = snapshot.val();
@@ -226,18 +226,19 @@ let speed = data.speed || 0;
 let direction = data.direction || "STOP";
 let trigger = data.trigger || "NO";
 
-/* YOUR LOGIC */
-if(trigger === "YES"){
+/* ✅ FIXED LOGIC (EDGE DETECTION) */
+if(trigger === "YES" && lastTrigger === "NO"){
 
-if(count == prevCount){
-missed++;
-addMap("missed");
-}else{
-addMap("plant");
+    if(count == prevCount){
+        missed++;
+        addMap("missed");
+    }else{
+        addMap("plant");
+    }
+
 }
 
-}
-
+lastTrigger = trigger;
 prevCount = count;
 
 /* UI UPDATE */
