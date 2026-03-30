@@ -1,98 +1,302 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <title>Smart Transplanter Map</title>
+<title>KrushiSarthi Darshan</title>
 
-  <!-- ✅ CSS MUST BE INSIDE STYLE -->
-  <style>
-    body {
-      font-family: Arial;
-      text-align: center;
-      background: #f4fff4;
-    }
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    h1 {
-      color: green;
-    }
+<style>
+body{
+font-family:Arial;
+margin:0;
+background:#e8f5e9;
+text-align:center;
+}
 
-    #map {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, 40px);
-      gap: 10px;
-      justify-content: center;
-      margin-top: 30px;
-    }
+/* LANDING */
+#landing{
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+background:linear-gradient(135deg,#e8f5e9,#c8e6c9);
+}
 
-    .cell {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: #ccc;
-    }
+.mainTitle{
+font-size:50px;
+color:#1b5e20;
+}
 
-    .planted {
-      background: green;
-    }
+.tractor{
+font-size:60px;
+animation:move 5s linear infinite;
+}
 
-    .missed {
-      background: red;
-    }
-  </style>
+@keyframes move{
+0%{transform:translateX(-200px);}
+100%{transform:translateX(200px);}
+}
+
+input{
+padding:10px;
+font-size:18px;
+}
+
+button{
+padding:12px 25px;
+font-size:18px;
+background:#2e7d32;
+color:white;
+border:none;
+border-radius:5px;
+cursor:pointer;
+}
+
+/* DASHBOARD */
+#dashboard{
+display:none;
+padding:20px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,200px);
+gap:15px;
+justify-content:center;
+}
+
+.card{
+background:white;
+padding:15px;
+border-radius:10px;
+box-shadow:0 4px 10px rgba(0,0,0,0.2);
+cursor:pointer;
+}
+
+/* MAP */
+#mapGrid{
+display:grid;
+grid-template-columns:repeat(10,35px);
+gap:5px;
+justify-content:center;
+margin-top:20px;
+}
+
+.cell{
+font-size:24px;
+}
+
+/* GRAPH */
+#graphBox{
+display:none;
+position:fixed;
+top:5%;
+left:50%;
+transform:translateX(-50%);
+background:white;
+padding:20px;
+width:80%;
+max-width:800px;
+border-radius:10px;
+}
+</style>
 </head>
 
 <body>
 
-<h1>🚜 Smart Plantation Map</h1>
+<!-- LANDING -->
+<div id="landing">
+<div>
+<h1 class="mainTitle">KRUSHISARTHI DARSHAN</h1>
+<div class="tractor">🚜 🌱 🌱 🌱</div>
 
-<div id="map"></div>
+<br>
 
-<!-- ✅ CORRECT FIREBASE VERSION -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<input id="vid" placeholder="Enter Vehicle ID">
 
-<script>
-  // 🔥 PUT YOUR REAL CONFIG HERE
-  const firebaseConfig = {
-    apiKey: "AIzaSyAo2-BGrCrO3N8pjTqaoAPH34_o6-Eueyo",
-    databaseURL: "https://tifan-66317-default-rtdb.asia-southeast1.firebasedatabase.app"
-  };
+<br><br>
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+<button onclick="start()">START</button>
+</div>
+</div>
 
-  const mapDiv = document.getElementById("map");
+<!-- DASHBOARD -->
+<div id="dashboard">
 
-  let lastCount = 0;
+<h1>Dashboard</h1>
 
-  // 🔁 TRIGGER BASED LOGIC
-  db.ref("transplanter/trigger").on("value", (snap) => {
-    let trigger = snap.val();
+<div class="grid">
 
-    if (trigger === "YES") {
+<div class="card" onclick="openGraph('Speed')">
+🚜 Speed
+<h2 id="speed">0</h2>
+</div>
 
-      db.ref("transplanter/count").once("value", (countSnap) => {
-        let currentCount = countSnap.val();
+<div class="card">
+🌱 Plants
+<h2 id="plants">0</h2>
+</div>
 
-        if (currentCount > lastCount) {
-          addBubble("planted");  // 🟢
-        } else {
-          addBubble("missed");   // 🔴
-        }
+<div class="card">
+❌ Missed
+<h2 id="missed">0</h2>
+</div>
 
-        lastCount = currentCount;
-      });
-    }
-  });
+<div class="card" onclick="openGraph('Direction')">
+🔄 Direction
+<h2 id="direction">STOP</h2>
+</div>
 
-  function addBubble(type) {
-    const div = document.createElement("div");
-    div.classList.add("cell");
+</div>
 
-    if (type === "planted") div.classList.add("planted");
-    if (type === "missed") div.classList.add("missed");
+<h2>🌾 Plantation Map</h2>
+<div id="mapGrid"></div>
 
-    mapDiv.appendChild(div);
-  }
+</div>
+
+<!-- GRAPH -->
+<div id="graphBox">
+<h3 id="gTitle"></h3>
+<canvas id="chart" height="300"></canvas>
+<br>
+<button onclick="closeGraph()">Close</button>
+</div>
+
+<script type="module">
+
+/* FIREBASE IMPORT */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+/* FIREBASE CONFIG */
+const firebaseConfig = {
+apiKey: "AIzaSyAo2-BGrCrO3N8pjTqaoAPH34_o6-Eueyo",
+databaseURL: "https://tifan-66317-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+/* LOGIN */
+window.start = function(){
+let id=document.getElementById("vid").value;
+
+if(id==="001"){
+document.getElementById("landing").style.display="none";
+document.getElementById("dashboard").style.display="block";
+}else{
+alert("Use 001");
+}
+}
+
+/* VARIABLES */
+let prevCount = 0;
+let missed = 0;
+
+/* GRAPH */
+let ctx=document.getElementById("chart");
+
+let chart=new Chart(ctx,{
+type:"line",
+data:{
+labels:[],
+datasets:[{
+label:"Speed",
+data:[],
+borderWidth:3
+}]
+},
+options:{
+scales:{
+x:{title:{display:true,text:"Time"}},
+y:{title:{display:true,text:"Speed (km/h)"}}
+}
+}
+});
+
+/* FIREBASE LIVE DATA */
+onValue(ref(db, "transplanter"), (snapshot) => {
+
+const data = snapshot.val();
+if(!data) return;
+
+let count = data.count || 0;
+let speed = data.speed || 0;
+let direction = data.direction || "STOP";
+let trigger = data.trigger || "NO";
+
+/* YOUR LOGIC */
+if(trigger === "YES"){
+
+if(count == prevCount){
+missed++;
+addMap("missed");
+}else{
+addMap("plant");
+}
+
+}
+
+prevCount = count;
+
+/* UI UPDATE */
+document.getElementById("plants").innerText = count;
+document.getElementById("missed").innerText = missed;
+document.getElementById("speed").innerText = speed + " km/h";
+document.getElementById("direction").innerText = direction;
+
+/* GRAPH */
+updateChart(speed);
+
+});
+
+/* MAP */
+function addMap(type){
+
+let c=document.createElement("div");
+c.className="cell";
+
+if(type==="plant"){
+c.innerHTML="🌱";
+}else{
+c.innerHTML="❌";
+}
+
+let grid=document.getElementById("mapGrid");
+grid.appendChild(c);
+
+if(grid.children.length>100){
+grid.removeChild(grid.firstChild);
+}
+
+}
+
+/* GRAPH UPDATE */
+function updateChart(v){
+
+chart.data.labels.push("");
+
+chart.data.datasets[0].data.push(v);
+
+if(chart.data.labels.length>20){
+chart.data.labels.shift();
+chart.data.datasets[0].data.shift();
+}
+
+chart.update();
+
+}
+
+window.openGraph = function(name){
+document.getElementById("gTitle").innerText=name+" vs Time";
+document.getElementById("graphBox").style.display="block";
+}
+
+window.closeGraph = function(){
+document.getElementById("graphBox").style.display="none";
+}
+
 </script>
 
 </body>
